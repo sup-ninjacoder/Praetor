@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #f4f4f5;
 }
 
 @theme inline {
@@ -12,15 +12,62 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  background: #000000;
+  color: #f4f4f5;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Cosmic starburst ray generator */
+.cosmic-rays {
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    rgba(255, 255, 255, 0.05) 0deg,
+    rgba(255, 255, 255, 0) 15deg,
+    rgba(255, 255, 255, 0.08) 32deg,
+    rgba(255, 255, 255, 0) 58deg,
+    rgba(255, 255, 255, 0.1) 85deg,
+    rgba(255, 255, 255, 0) 115deg,
+    rgba(255, 255, 255, 0.06) 138deg,
+    rgba(255, 255, 255, 0) 162deg,
+    rgba(255, 255, 255, 0.12) 180deg,
+    rgba(255, 255, 255, 0) 205deg,
+    rgba(255, 255, 255, 0.07) 228deg,
+    rgba(255, 255, 255, 0) 250deg,
+    rgba(255, 255, 255, 0.11) 275deg,
+    rgba(255, 255, 255, 0) 305deg,
+    rgba(255, 255, 255, 0.06) 332deg,
+    rgba(255, 255, 255, 0.05) 360deg
+  );
+  mask-image: radial-gradient(circle at 50% 50%, black 10%, transparent 68%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 10%, transparent 68%);
+}
+
+@keyframes slow-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.animate-slow-spin {
+  animation: slow-spin 180s linear infinite;
+}
+
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 10s ease-in-out infinite;
 }
