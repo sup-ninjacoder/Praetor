@@ -48,18 +48,17 @@ function getWallet(): ethers.Wallet {
   const rawKey =
     process.env.DEPLOYER_PRIVATE_KEY ||
     process.env.PRIVATE_KEY ||
-    process.env.WALLET_PRIVATE_KEY;
+    process.env.WALLET_PRIVATE_KEY ||
+    "";
+  const safeKey = rawKey ? (rawKey.startsWith("0x") ? rawKey : "0x" + rawKey) : "";
 
-  if (!rawKey) {
+  if (!safeKey) {
     throw new Error(
       "[Praetor] Deployer private key is not set. Add DEPLOYER_PRIVATE_KEY, PRIVATE_KEY, or WALLET_PRIVATE_KEY to .env.local."
     );
   }
 
-  // Normalise: ensure the key has a 0x prefix
-  const privateKey = rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`;
-
-  _wallet = new ethers.Wallet(privateKey, getProvider());
+  _wallet = new ethers.Wallet(safeKey, getProvider());
   return _wallet;
 }
 

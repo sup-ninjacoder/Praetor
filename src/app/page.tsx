@@ -230,11 +230,13 @@ export default function HomePage() {
       clearTimeout(t2);
       clearTimeout(t3);
 
-      const data = await res.json();
-
-      if (!res.ok && !data.evaluation) {
-        throw new Error(data.error || "Evaluation failed to execute.");
+      if (!res.ok) {
+        const text = await res.text();
+        alert("Praetor Diagnostics: " + text);
+        return; // Stop execution, do NOT throw
       }
+
+      const data = await res.json();
 
       setActiveStage(5);
       const evalId = data.id || `eval-${Date.now().toString(36)}`;
@@ -295,9 +297,9 @@ export default function HomePage() {
         router.push(`/evaluate/${evalId}`);
       }, 1400);
 
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Evaluation failed.";
-      toast.error(msg);
+    } catch (err: any) {
+      alert("Network Error: " + (err?.message || String(err)));
+      return;
     } finally {
       setIsEvaluating(false);
       setActiveStage(0);
