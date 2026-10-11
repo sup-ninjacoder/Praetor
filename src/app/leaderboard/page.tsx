@@ -198,7 +198,7 @@ export default function LeaderboardPage() {
             >
               <Terminal className="h-3.5 w-3.5 text-zinc-400" />
               <span className="font-mono">
-                {CONTRACT_ADDRESS.slice(0, 6)}...{CONTRACT_ADDRESS.slice(-4)}
+                {(CONTRACT_ADDRESS || "").slice(0, 6)}...{(CONTRACT_ADDRESS || "").slice(-4)}
               </span>
               {copiedContract ? (
                 <Check className="h-3 w-3 text-emerald-400" />
@@ -353,7 +353,7 @@ export default function LeaderboardPage() {
               <p className="text-xs text-zinc-400 leading-relaxed">
                 The smart contract at{" "}
                 <span className="font-mono text-zinc-300">
-                  {CONTRACT_ADDRESS.slice(0, 10)}...
+                  {(CONTRACT_ADDRESS || "").slice(0, 10)}...
                 </span>{" "}
                 is awaiting its first verified hackathon evaluation.
               </p>

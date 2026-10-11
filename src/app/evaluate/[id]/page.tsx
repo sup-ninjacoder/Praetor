@@ -45,6 +45,7 @@ interface EvaluationItem {
   architecturalSummary?: string;
   feedbackHash: string;
   txHash?: string;
+  contractAddress?: string;
   snowtraceUrl?: string;
   onChainEvaluationId?: string;
   onChainError?: string;
@@ -67,7 +68,12 @@ function EvaluateContent() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setError("No evaluation ID specified.");
+      return;
+    }
+
     async function fetchEval() {
       try {
         setLoading(true);
@@ -84,14 +90,15 @@ function EvaluateContent() {
         console.warn(`[Praetor] Remote fetch for ${id} failed, checking localStorage fallback:`, err);
       }
 
-      // Client-Side Fallback on Result Page:
+      // Robust Client-Side Fallback on Result Page:
       // When fetching /api/evaluations/${id}, if the response status is 404 or fails, immediately check localStorage
       if (typeof window !== "undefined") {
         try {
-          const cachedRaw = localStorage.getItem(`praetor_eval_${id}`);
+          const directKey = `praetor_eval_${id}`;
+          const cachedRaw = localStorage.getItem(directKey);
           if (cachedRaw) {
             const cached = JSON.parse(cachedRaw);
-            const item: EvaluationItem = cached.evaluation || cached;
+            const item: EvaluationItem = cached?.evaluation || cached;
             if (item && (item.codeScore !== undefined || item.repoUrl)) {
               setEvaluation(item);
               setError(null);
@@ -106,10 +113,14 @@ function EvaluateContent() {
             const recentList = JSON.parse(recentRaw);
             if (Array.isArray(recentList)) {
               const found = recentList.find(
-                (item: any) => item?.id === id || item?.onChainEvaluationId === id
+                (entry: any) =>
+                  entry?.id === id ||
+                  entry?.onChainEvaluationId === id ||
+                  entry?.txHash === id ||
+                  (entry?.evaluation && (entry.evaluation.id === id || entry.evaluation.onChainEvaluationId === id || entry.evaluation.txHash === id))
               );
               if (found) {
-                const item: EvaluationItem = found.evaluation || found;
+                const item: EvaluationItem = found?.evaluation || found;
                 if (item && (item.codeScore !== undefined || item.repoUrl)) {
                   setEvaluation(item);
                   setError(null);
@@ -194,7 +205,7 @@ function EvaluateContent() {
           </div>
         </div>
 
-        {/* Loading state */}
+        {/* Loading state skeleton */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-24 space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
@@ -202,14 +213,16 @@ function EvaluateContent() {
           </div>
         )}
 
-        {/* Error state */}
-        {!loading && error && (
+        {/* Graceful Fallback / Record Not Found state */}
+        {!loading && (!evaluation || error) && (
           <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-8 text-center space-y-4">
             <AlertCircle className="h-10 w-10 text-red-400 mx-auto" />
             <h2 className="text-lg font-semibold text-white">Record Not Found</h2>
-            <p className="text-sm text-zinc-400 max-w-md mx-auto">{error}</p>
+            <p className="text-sm text-zinc-400 max-w-md mx-auto">
+              {error || "The requested evaluation could not be located in local cache or on-chain."}
+            </p>
             <Button onClick={() => router.push("/")} className="bg-white text-black hover:bg-zinc-200">
-              Submit a Project
+              Back to Submit
             </Button>
           </div>
         )}
@@ -228,9 +241,9 @@ function EvaluateContent() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs uppercase tracking-wider text-zinc-500 font-mono">
-                      Verdict Record
+                      Verdict Record #{((evaluation?.id || "")).slice(0, 8)}
                     </span>
-                    {evaluation.txHash ? (
+                    {(evaluation?.txHash || "") ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[11px] text-emerald-400">
                         <ShieldCheck className="h-3 w-3" />
                         On-Chain Verified
@@ -243,27 +256,29 @@ function EvaluateContent() {
                     )}
                   </div>
                   <h1 className="text-2xl md:text-4xl font-semibold tracking-tight text-white">
-                    {evaluation.repoId}
+                    {evaluation?.repoId || (evaluation?.repoUrl ? evaluation.repoUrl.replace("https://github.com/", "") : "Repository")}
                   </h1>
-                  <a
-                    href={evaluation.repoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white underline underline-offset-4"
-                  >
-                    <span>{evaluation.repoUrl}</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  {evaluation?.repoUrl && (
+                    <a
+                      href={evaluation.repoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white underline underline-offset-4"
+                    >
+                      <span>{evaluation.repoUrl}</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
                 </div>
 
                 <div className="flex flex-col sm:items-end gap-1.5">
                   <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
                     <GitCommit className="h-3.5 w-3.5" />
-                    <span>{evaluation.commitSha.slice(0, 7)}</span>
+                    <span>{(evaluation?.commitSha || "").slice(0, 7) || "HEAD"}</span>
                     <span className="text-zinc-600">|</span>
-                    <span>{evaluation.filesAnalyzed} files</span>
+                    <span>{evaluation?.filesAnalyzed ?? 0} files</span>
                   </div>
-                  {evaluation.videoName && (
+                  {evaluation?.videoName && (
                     <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-zinc-300">
                       <FileVideo className="h-3 w-3 text-zinc-400" />
                       <span className="truncate max-w-[160px]">{evaluation.videoName}</span>
@@ -427,15 +442,15 @@ function EvaluateContent() {
                   <span className="font-mono text-zinc-500">Chain ID 43113</span>
                 </div>
 
-                {evaluation.txHash ? (
+                {evaluation?.txHash ? (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/5 pt-3">
                     <span className="text-zinc-500 font-mono">Transaction Hash</span>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-zinc-300 truncate max-w-[200px] sm:max-w-[320px]">
-                        {evaluation.txHash}
+                        {(evaluation?.txHash || "")}
                       </span>
                       <button
-                        onClick={() => handleCopy(evaluation.txHash!, "tx")}
+                        onClick={() => handleCopy(evaluation?.txHash || "", "tx")}
                         className="text-zinc-400 hover:text-white"
                         title="Copy Tx Hash"
                       >
@@ -456,34 +471,48 @@ function EvaluateContent() {
                       </a>
                     </div>
                   </div>
-                ) : evaluation.onChainError ? (
+                ) : evaluation?.onChainError ? (
                   <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 text-[11px] text-amber-300">
                     {evaluation.onChainError}
                   </div>
                 ) : null}
+
+                {/* Contract Address */}
+                {(evaluation?.contractAddress || process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/5 pt-3">
+                    <span className="text-zinc-500 font-mono">Contract Address</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-zinc-300">
+                        {((evaluation?.contractAddress || process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "")).slice(0, 10)}...{((evaluation?.contractAddress || process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "")).slice(-4)}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Feedback SHA-256 Hash */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/5 pt-3">
                   <span className="text-zinc-500 font-mono">Feedback Hash (SHA-256)</span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-zinc-300 truncate max-w-[200px] sm:max-w-[320px]">
-                      {evaluation.feedbackHash}
+                      {evaluation?.feedbackHash || "N/A"}
                     </span>
-                    <button
-                      onClick={() => handleCopy(evaluation.feedbackHash, "hash")}
-                      className="text-zinc-400 hover:text-white"
-                      title="Copy Feedback Hash"
-                    >
-                      {copiedHash ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+                    {evaluation?.feedbackHash && (
+                      <button
+                        onClick={() => handleCopy(evaluation.feedbackHash, "hash")}
+                        className="text-zinc-400 hover:text-white"
+                        title="Copy Feedback Hash"
+                      >
+                        {copiedHash ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {evaluation.onChainEvaluationId && (
+                {evaluation?.onChainEvaluationId && (
                   <div className="flex items-center justify-between border-t border-white/5 pt-3">
                     <span className="text-zinc-500 font-mono">On-Chain Evaluation ID</span>
                     <span className="font-mono text-zinc-300">
