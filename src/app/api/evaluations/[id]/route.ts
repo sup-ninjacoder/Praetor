@@ -70,9 +70,7 @@ export async function GET(
             txHash,
             snowtraceUrl: txHash
               ? `https://testnet.snowtrace.io/tx/${txHash}`
-              : process.env.NEXT_PUBLIC_CONTRACT_ADDRESS
-              ? `https://testnet.snowtrace.io/address/${process.env.NEXT_PUBLIC_CONTRACT_ADDRESS}`
-              : undefined,
+              : `https://testnet.snowtrace.io/address/${process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x8dF146E5B190DB9B3a397E9456B2002A4EE38439"}`,
             filesAnalyzed: 16,
             createdAt: new Date(Number(raw.timestamp) * 1000).toISOString(),
           };

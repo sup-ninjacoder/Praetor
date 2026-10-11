@@ -28,12 +28,11 @@ let _wallet: ethers.Wallet | null = null;
 function getProvider(): ethers.JsonRpcProvider {
   if (_provider) return _provider;
 
-  const rpcUrl = process.env.FUJI_RPC_URL;
-  if (!rpcUrl) {
-    throw new Error(
-      "[Praetor] FUJI_RPC_URL is not set. Add it to agent-judge/.env.local."
-    );
-  }
+  const rpcUrl =
+    process.env.FUJI_RPC_URL ||
+    process.env.NEXT_PUBLIC_RPC_URL ||
+    process.env.RPC_URL ||
+    "https://api.avax-test.network/ext/bc/C/rpc";
 
   _provider = new ethers.JsonRpcProvider(rpcUrl, {
     name: "avalanche-fuji",
@@ -46,10 +45,14 @@ function getProvider(): ethers.JsonRpcProvider {
 function getWallet(): ethers.Wallet {
   if (_wallet) return _wallet;
 
-  const rawKey = process.env.DEPLOYER_PRIVATE_KEY;
+  const rawKey =
+    process.env.DEPLOYER_PRIVATE_KEY ||
+    process.env.PRIVATE_KEY ||
+    process.env.WALLET_PRIVATE_KEY;
+
   if (!rawKey) {
     throw new Error(
-      "[Praetor] DEPLOYER_PRIVATE_KEY is not set. Add it to agent-judge/.env.local."
+      "[Praetor] Deployer private key is not set. Add DEPLOYER_PRIVATE_KEY, PRIVATE_KEY, or WALLET_PRIVATE_KEY to .env.local."
     );
   }
 
@@ -65,7 +68,10 @@ function getWallet(): ethers.Wallet {
  * The returned instance can call all write functions (e.g. recordEvaluation).
  */
 export function getRegistryContract(): ethers.Contract {
-  const address = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+  const address =
+    process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
+    "0x8dF146E5B190DB9B3a397E9456B2002A4EE38439";
+
   if (!address || address === "0x0000000000000000000000000000000000000000") {
     throw new Error(
       "[Praetor] NEXT_PUBLIC_CONTRACT_ADDRESS is not set or is the zero address. " +
@@ -81,7 +87,10 @@ export function getRegistryContract(): ethers.Contract {
  * Safe for view calls without requiring private key signing permissions.
  */
 export function getReadOnlyRegistryContract(): ethers.Contract {
-  const address = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+  const address =
+    process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
+    "0x8dF146E5B190DB9B3a397E9456B2002A4EE38439";
+
   if (!address || address === "0x0000000000000000000000000000000000000000") {
     throw new Error(
       "[Praetor] NEXT_PUBLIC_CONTRACT_ADDRESS is not set or is the zero address."

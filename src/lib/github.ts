@@ -118,9 +118,9 @@ function buildHeaders(): HeadersInit {
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
-  const pat = process.env.GITHUB_PAT;
-  if (pat) {
-    headers["Authorization"] = `Bearer ${pat}`;
+  const token = process.env.GITHUB_PAT || process.env.GITHUB_TOKEN;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   return headers;
