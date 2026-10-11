@@ -66,13 +66,48 @@ export default function LeaderboardPage() {
       const res = await fetch("/api/evaluations", { cache: "no-store" });
       const data = await res.json();
 
-      if (data.success && Array.isArray(data.evaluations)) {
-        setEvaluations(data.evaluations);
-        if (isManualRefresh) {
-          toast.success("Leaderboard updated from Avalanche Fuji");
+      let list: LeaderboardItem[] = data.success && Array.isArray(data.evaluations) ? data.evaluations : [];
+
+      if (typeof window !== "undefined") {
+        try {
+          const recentRaw = localStorage.getItem("praetor_recent_evaluations");
+          if (recentRaw) {
+            const recentList = JSON.parse(recentRaw);
+            if (Array.isArray(recentList)) {
+              const mappedRecent: LeaderboardItem[] = recentList.map((item: any) => ({
+                id: item.id || `eval-${Date.now()}`,
+                onChainEvaluationId: item.onChainEvaluationId || "pending",
+                repoUrl: item.repoUrl || "",
+                repoName: item.repoId || (item.repoUrl ? item.repoUrl.replace(/^https?:\/\/github\.com\//, "") : "submission"),
+                commitSha: item.commitSha || "main",
+                codeScore: item.codeScore ?? item.evaluation?.codeScore ?? 50,
+                uiScore: item.uiScore ?? item.evaluation?.uiScore ?? 50,
+                totalScore:
+                  item.totalScore ??
+                  Math.round(
+                    (item.codeScore ?? item.evaluation?.codeScore ?? 50) * 0.6 +
+                      (item.uiScore ?? item.evaluation?.uiScore ?? 50) * 0.4
+                  ),
+                feedbackHash: item.feedbackHash || "",
+                txHash: item.txHash,
+                snowtraceUrl: item.snowtraceUrl,
+                timestamp: Math.floor(new Date(item.createdAt || Date.now()).getTime() / 1000),
+                createdAt: item.createdAt || new Date().toISOString(),
+                recordedBy: item.recordedBy || "Praetor Registry",
+                isFrontendConnected: item.isFrontendConnected ?? true,
+                videoName: item.videoName || item.meta?.videoName,
+              }));
+              list = [...mappedRecent, ...list];
+            }
+          }
+        } catch (storageErr) {
+          console.warn("[Praetor] Failed to merge recent evaluations in leaderboard:", storageErr);
         }
-      } else {
-        toast.error("Failed to load on-chain leaderboard.");
+      }
+
+      setEvaluations(list);
+      if (isManualRefresh && data.success) {
+        toast.success("Leaderboard updated from Avalanche Fuji");
       }
     } catch (err) {
       console.error("Failed to fetch evaluations:", err);

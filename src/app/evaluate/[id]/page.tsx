@@ -72,17 +72,60 @@ function EvaluateContent() {
       try {
         setLoading(true);
         const res = await fetch(`/api/evaluations/${id}`);
-        const data = await res.json();
-        if (data.success && data.evaluation) {
+        const data = await res.json().catch(() => null);
+
+        if (res.ok && data?.success && data?.evaluation) {
           setEvaluation(data.evaluation);
-        } else {
-          setError(data.error || "Evaluation record not found.");
+          setError(null);
+          setLoading(false);
+          return;
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load evaluation.");
-      } finally {
-        setLoading(false);
+        console.warn(`[Praetor] Remote fetch for ${id} failed, checking localStorage fallback:`, err);
       }
+
+      // Client-Side Fallback on Result Page:
+      // When fetching /api/evaluations/${id}, if the response status is 404 or fails, immediately check localStorage
+      if (typeof window !== "undefined") {
+        try {
+          const cachedRaw = localStorage.getItem(`praetor_eval_${id}`);
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw);
+            const item: EvaluationItem = cached.evaluation || cached;
+            if (item && (item.codeScore !== undefined || item.repoUrl)) {
+              setEvaluation(item);
+              setError(null);
+              setLoading(false);
+              return;
+            }
+          }
+
+          // Also check praetor_recent_evaluations list
+          const recentRaw = localStorage.getItem("praetor_recent_evaluations");
+          if (recentRaw) {
+            const recentList = JSON.parse(recentRaw);
+            if (Array.isArray(recentList)) {
+              const found = recentList.find(
+                (item: any) => item?.id === id || item?.onChainEvaluationId === id
+              );
+              if (found) {
+                const item: EvaluationItem = found.evaluation || found;
+                if (item && (item.codeScore !== undefined || item.repoUrl)) {
+                  setEvaluation(item);
+                  setError(null);
+                  setLoading(false);
+                  return;
+                }
+              }
+            }
+          }
+        } catch (storageErr) {
+          console.warn("[Praetor] Failed to read cached evaluation from localStorage:", storageErr);
+        }
+      }
+
+      setError("Evaluation record not found.");
+      setLoading(false);
     }
     fetchEval();
   }, [id]);

@@ -240,6 +240,56 @@ export default function HomePage() {
       const evalId = data.id || `eval-${Date.now().toString(36)}`;
       setCompletedId(evalId);
 
+      // Create a comprehensive result object matching EvaluationItem & API response
+      const result = {
+        ...data,
+        id: evalId,
+        repoUrl: trimmed,
+        repoId: data.meta?.repoId || trimmed.replace(/^https?:\/\/github\.com\//, ""),
+        commitSha: data.meta?.commitSha || "main",
+        ref: data.meta?.ref || "main",
+        codeScore: data.evaluation?.codeScore ?? 50,
+        uiScore: data.evaluation?.uiScore ?? 50,
+        totalScore: Math.round(
+          (data.evaluation?.codeScore ?? 50) * 0.6 + (data.evaluation?.uiScore ?? 50) * 0.4
+        ),
+        isFrontendConnected: data.evaluation?.isFrontendConnected ?? true,
+        feedback: data.evaluation?.feedback || "",
+        goodPractices: data.evaluation?.goodPractices,
+        badPractices: data.evaluation?.badPractices,
+        deductionReasons: data.evaluation?.deductionReasons,
+        architecturalSummary: data.evaluation?.architecturalSummary,
+        feedbackHash: data.feedbackHash || "",
+        txHash: data.txHash,
+        snowtraceUrl: data.snowtraceUrl,
+        onChainEvaluationId: data.onChainEvaluationId,
+        onChainError: data.onChainError,
+        filesAnalyzed: data.meta?.filesAnalyzed ?? 12,
+        videoName: data.meta?.videoName,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Client storage on submission: immediately save to localStorage before redirecting
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`praetor_eval_${result.id}`, JSON.stringify(result));
+
+          const recentRaw = localStorage.getItem("praetor_recent_evaluations");
+          let recentList: any[] = [];
+          if (recentRaw) {
+            try {
+              recentList = JSON.parse(recentRaw);
+              if (!Array.isArray(recentList)) recentList = [];
+            } catch {}
+          }
+          recentList = recentList.filter((item: any) => item?.id !== result.id);
+          recentList.unshift(result);
+          localStorage.setItem("praetor_recent_evaluations", JSON.stringify(recentList.slice(0, 30)));
+        } catch (storageErr) {
+          console.warn("[Praetor] Failed to save evaluation to localStorage:", storageErr);
+        }
+      }
+
       toast.success("Evaluation complete! Navigating to results...");
       setTimeout(() => {
         router.push(`/evaluate/${evalId}`);

@@ -24,6 +24,9 @@ import { evaluateProject, uploadVideoForEvaluation, type EvaluationResult } from
 import { getRegistryContract } from "@/lib/contractClient";
 import { saveEvaluation } from "@/lib/evaluationsStore";
 
+/** Prevent Vercel serverless function from timing out during multimodal Gemini/Avalanche operations */
+export const maxDuration = 60;
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------

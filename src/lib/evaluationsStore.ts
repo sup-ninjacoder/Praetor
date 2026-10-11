@@ -124,6 +124,13 @@ const SEED_EVALUATIONS: EvaluationItem[] = [
   },
 ];
 
+const inMemoryStore = new Map<string, EvaluationItem>();
+
+// Seed in-memory store
+for (const seed of SEED_EVALUATIONS) {
+  inMemoryStore.set(seed.id, seed);
+}
+
 function ensureStorage(): void {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -134,34 +141,54 @@ function ensureStorage(): void {
       fs.writeFileSync(DATA_FILE, JSON.stringify(SEED_EVALUATIONS, null, 2), "utf-8");
     }
   } catch (err) {
-    console.error("[evaluationsStore] Failed to ensure storage file:", err);
+    // Safe guard against EROFS on Vercel serverless runtime
+    console.warn("[evaluationsStore] Serverless filesystem initialization note:", err);
   }
 }
 
 export function getAllEvaluations(): EvaluationItem[] {
   ensureStorage();
+  const diskItems: EvaluationItem[] = [];
   try {
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    const items: EvaluationItem[] = JSON.parse(raw);
-    const seen = new Set<string>();
-    const unique: EvaluationItem[] = [];
-    for (const item of items) {
-      if (!item.id || seen.has(item.id)) continue;
-      seen.add(item.id);
-      unique.push(item);
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        diskItems.push(...parsed);
+      }
     }
-    return unique.sort((a, b) => b.totalScore - a.totalScore);
   } catch {
-    return SEED_EVALUATIONS;
+    // Ephemeral or read-only filesystem fallback
   }
+
+  const combined = Array.from(inMemoryStore.values()).concat(diskItems);
+  const seen = new Set<string>();
+  const unique: EvaluationItem[] = [];
+  for (const item of combined) {
+    if (!item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    unique.push(item);
+  }
+  return unique.sort((a, b) => b.totalScore - a.totalScore);
 }
 
 export function getEvaluationById(id: string): EvaluationItem | null {
+  // Check in-memory store first
+  if (inMemoryStore.has(id)) {
+    return inMemoryStore.get(id)!;
+  }
+  for (const item of inMemoryStore.values()) {
+    if (item.onChainEvaluationId === id) return item;
+  }
+
   const all = getAllEvaluations();
   return all.find((item) => item.id === id || item.onChainEvaluationId === id) || null;
 }
 
 export function saveEvaluation(item: EvaluationItem): void {
+  // Always update in-memory store first for serverless lifetime
+  inMemoryStore.set(item.id, item);
+
   ensureStorage();
   try {
     const all = getAllEvaluations();
@@ -173,6 +200,7 @@ export function saveEvaluation(item: EvaluationItem): void {
     }
     fs.writeFileSync(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
   } catch (err) {
-    console.error("[evaluationsStore] Failed to save evaluation:", err);
+    // Safe guard: catch EROFS: read-only file system without crashing on Vercel
+    console.warn("[evaluationsStore] Handled serverless filesystem write restriction:", err);
   }
 }
